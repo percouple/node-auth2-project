@@ -1,12 +1,12 @@
 const router = require("express").Router();
-const { checkUsernameExists, validateRoleName } = require('./auth-middleware');
-const { JWT_SECRET } = require("../secrets"); // use this secret!
-const Database = require('../users/users-model');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken')
+const { checkUsernameExists, validateRoleName } = require("./auth-middleware");
+const { JWT_SECRET } = require("../secrets/index"); // use this secret!
+const Database = require("../users/users-model");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 router.post("/register", validateRoleName, async (req, res, next) => {
-/**
+  /**
  [POST] /api/auth/register { "username": "anna", "password": "1234", "role_name": "angel" }
     response: status 201,
     {
@@ -20,9 +20,9 @@ router.post("/register", validateRoleName, async (req, res, next) => {
   // Password encryption
   const passwordEncrypted = bcrypt.hashSync(user.password, 12);
 
-  // Response destructure 
+  // Response destructure
   const { username } = user;
-  console.log(req.role_name)
+  console.log(req.role_name);
   const role_name = req.role_name;
 
   // User re-assembly
@@ -30,18 +30,32 @@ router.post("/register", validateRoleName, async (req, res, next) => {
     username: username,
     password: passwordEncrypted,
     role_name: role_name,
-  }
+  };
 
   // DB operation
   await Database.add(updatedUser)
-  .then(([result]) => {
-    res.status(201).json(result);
-  })
-  .catch(next)
+    .then(([result]) => {
+      res.status(201).json(result);
+    })
+    .catch(next);
 });
 
-
 router.post("/login", checkUsernameExists, async (req, res, next) => {
+  const generateToken = (user) => {
+    const payload = {
+      subject: user.id, // sub in payload is what the token is about
+      username: user.username,
+      // ...otherData
+    };
+    console.log(JWT_SECRET)
+
+    const options = {
+      expiresIn: "1d", // show other available options in the library's documentation
+    };
+
+    // extract the secret away so it can be required and used where needed
+    return jwt.sign(payload, JWT_SECRET, options); // this method is synchronous
+  };
   /**
     [POST] /api/auth/login { "username": "sue", "password": "1234" }
     response: status 200,
@@ -58,14 +72,22 @@ router.post("/login", checkUsernameExists, async (req, res, next) => {
     }
    */
 
-  const username = req.body.username;
-  
+  const user = req.body;
+
   // Database op
-  await Database.findBy('username', username)
-  .then((result) => {
-    res.status(200).json(result)
-  })
-  .catch(next);
+  await Database.findBy("username", user.username)
+    .then((result) => {
+      console.log(result)
+      if (user && bcrypt.compareSync(user.password, result[0].password)) {
+        const token = generateToken(req.body);
+        res
+          .status(200)
+          .json({ message: `${result[0].username} is back!`, token: token });
+      }
+    })
+    .catch(next);
+
+  
 });
 
 module.exports = router;
