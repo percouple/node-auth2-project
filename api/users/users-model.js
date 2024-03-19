@@ -20,7 +20,7 @@ function find() {
    */
 }
 
-function findBy(filter) {
+function findBy(method, instance) {
   /**
     You will need to join two tables.
     Resolves to an ARRAY with all users that match the filter condition.
@@ -34,19 +34,26 @@ function findBy(filter) {
       }
     ]
    */
+  return db.select('user_id', 'username', 'password', 'role_name')
+  .from('users')
+  .leftJoin('roles', 'users.role_id', 'roles.role_id')
+  .where(method, '=', instance)
 }
 
 function findById(user_id) {
   /**
     You will need to join two tables.
     Resolves to the user with the given user_id.
-
     {
       "user_id": 2,
       "username": "sue",
       "role_name": "instructor"
     }
    */
+  return db.select('user_id', 'username', 'role_name')
+  .from('users')
+  .leftJoin('roles', 'users.role_id', 'roles.role_id')
+  .where('user_id', '=', user_id)
 }
 
 /**
@@ -67,6 +74,7 @@ function findById(user_id) {
     "role_name": "team lead"
   }
  */
+
 async function add({ username, password, role_name }) { // done for you
   let created_user_id
   await db.transaction(async trx => {
