@@ -43,14 +43,15 @@ router.post("/register", validateRoleName, async (req, res, next) => {
 router.post("/login", checkUsernameExists, async (req, res, next) => {
   const generateToken = (user) => {
     const payload = {
-      subject: user.id, // sub in payload is what the token is about
+      subject: user.subject, // sub in payload is what the token is about
       username: user.username,
-      // ...otherData
+      role_name: user.role_name,
+      iat: 0,
+      exp: 1,
     };
-    console.log(JWT_SECRET)
 
     const options = {
-      expiresIn: "1d", // show other available options in the library's documentation
+      // expiresIn: "1d", // show other available options in the library's documentation
     };
 
     // extract the secret away so it can be required and used where needed
@@ -77,12 +78,19 @@ router.post("/login", checkUsernameExists, async (req, res, next) => {
   // Database op
   await Database.findBy("username", user.username)
     .then((result) => {
-      console.log(result)
       if (user && bcrypt.compareSync(user.password, result[0].password)) {
-        const token = generateToken(req.body);
+        const [{ username, role_name, user_id }] = result;
+        const tokenData = {
+          username: username,
+          role_name: role_name,
+          subject: user_id
+        }
+        const token = generateToken(tokenData);
         res
           .status(200)
           .json({ message: `${result[0].username} is back!`, token: token });
+      } else {
+        return next({ status: 401, message: "Invalid credentials" })
       }
     })
     .catch(next);
